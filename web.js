@@ -5,7 +5,7 @@ var app = express();
 app.use(express.logger());
 
 var content = fs.readFileSync("html.index");
-console.log(content.toString('utf8');
+console.log(content.toString('utf-8');
 
 
 var port = process.env.PORT || 5000;
