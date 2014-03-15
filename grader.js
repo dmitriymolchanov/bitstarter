@@ -21,6 +21,9 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var rest = require('restler');
+var sys = require('util');
+
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
 
@@ -38,6 +41,11 @@ var cheerioHTMLFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
 };
 
+var cheerioURLresult = function(url_result) {
+    	console.log('Using Cheerio to load URL');
+	return cheerio.load(url_result);
+};
+
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
@@ -53,6 +61,31 @@ var checkHTMLFile = function(htmlfile, checksfile) {
     return out;
 };
 
+
+var checkURL = function(url_result, checksfile) {
+    $ = cheerioURLresult(url_result);
+    var checks = loadChecks(checksfile).sort();
+    var out = {};
+    for (var ii in checks) {
+        var present = $(checks[ii]).length > 0;
+        out[checks[ii]] = present;
+    }
+    return out;
+    console.log('Successfully Ran CheckURL');
+};
+
+var getURL = function(apiurl) {
+	rest.get(program.url).on('complete', function(result) {
+    		if (result instanceof Error) {
+        		console.log('Error:' + result.message);
+			process.exit(1);
+    		} else {
+			console.log('Checking:' + program.url);
+			checkURL(result, program.checks);
+		}
+	});
+};
+
 var clone = function(fn) {
     return fn.bind({});
 };
@@ -61,10 +94,20 @@ if(require.main == module) {
     program
       .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
       .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+      .option('-u, --url <url_result>', 'Command Line URL Entry')
       .parse(process.argv);
-    var checkJson = checkHTMLFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+    if (program.url) {
+        console.log('Checking: ' + program.url);
+	rest.get(program.url).on('complete', function(result) {
+		var completedcheck = checkURL(program.url, program.checks);
+		var makepretty = JSON.stringify(completedcheck, null, 4);
+		console.log(makepretty);
+	});
+    } else {
+        var checkJson = checkHTMLFile(program.file, program.checks);
+        var outJson = JSON.stringify(checkJson, null, 4);
+        console.log(outJson);
+    }
 } else {
-    exports.checkHTMLFile = checkHTMLFile;
-}
+        exports.checkHTMLFile = checkHTMLFile;
+};
